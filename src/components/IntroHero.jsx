@@ -12,13 +12,10 @@ const EASE_CURSOR = 'sine.out'
 const FULL_TEXT = "I'M DIPESH"
 const CHAR_INTERVAL_MS = 500
 
-/** HEY THERE settles in this long; then a pause before the name line. */
 const HEY_INTRO_DURATION_S = 0.2
-const PAUSE_AFTER_HEY_S = 0.2
 
 export function IntroHero() {
   const [visible, setVisible] = useState(false)
-  const [allowTyping, setAllowTyping] = useState(false)
   const [typed, setTyped] = useState('')
   const [typingDone, setTypingDone] = useState(false)
 
@@ -37,8 +34,6 @@ export function IntroHero() {
   useEffect(() => {
     const onShow = () => {
       setVisible(true)
-      setAllowTyping(false)
-      setTypingDone(false)
       exitDispatchedRef.current = false
     }
 
@@ -47,25 +42,42 @@ export function IntroHero() {
   }, [])
 
   useEffect(() => {
-    if (!allowTyping) return
+    if (!visible) return undefined
 
-    setTyped('')
-    setTypingDone(false)
-    let index = 0
+    let cancelled = false
+    let intervalId = 0
 
-    const interval = setInterval(() => {
-      index += 1
-      const next = FULL_TEXT.slice(0, index)
-      setTyped(next)
+    const startId = requestAnimationFrame(() => {
+      if (cancelled) return
+      setTyped('')
+      setTypingDone(false)
 
-      if (next.length >= FULL_TEXT.length) {
-        clearInterval(interval)
-        setTypingDone(true)
+      let index = 0
+      const step = () => {
+        index += 1
+        const next = FULL_TEXT.slice(0, index)
+        setTyped(next)
+        if (next.length >= FULL_TEXT.length) {
+          setTypingDone(true)
+          return true
+        }
+        return false
       }
-    }, CHAR_INTERVAL_MS)
 
-    return () => clearInterval(interval)
-  }, [allowTyping])
+      if (FULL_TEXT.length > 0 && !step()) {
+        intervalId = window.setInterval(() => {
+          if (cancelled) return
+          if (step()) clearInterval(intervalId)
+        }, CHAR_INTERVAL_MS)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(startId)
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [visible])
 
   useLayoutEffect(() => {
     if (!visible || !scrollContainerRef.current) return undefined
@@ -75,32 +87,25 @@ export function IntroHero() {
 
     const ctx = gsap.context(() => {
       if (heyRef.current && dipeshRowRef.current) {
-        gsap.set([heyRef.current, dipeshRowRef.current], {
+        gsap.set(heyRef.current, {
           opacity: 0,
           y: 36,
           scale: 0.94,
           transformOrigin: 'center center',
         })
+        gsap.set(dipeshRowRef.current, {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          transformOrigin: 'center center',
+        })
 
-        const introTl = gsap.timeline({ defaults: { ease: EASE_INTRO } })
-        introTl.to(heyRef.current, {
+        gsap.to(heyRef.current, {
           opacity: 1,
           y: 0,
           scale: 1,
           duration: HEY_INTRO_DURATION_S,
-        })
-        introTl.to(
-          dipeshRowRef.current,
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 1.2,
-          },
-          `+=${PAUSE_AFTER_HEY_S}`
-        )
-        introTl.call(() => {
-          setAllowTyping(true)
+          ease: EASE_INTRO,
         })
       }
 
