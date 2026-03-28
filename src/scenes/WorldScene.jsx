@@ -6,7 +6,7 @@ import { SectionProvider } from '../context/SectionContext'
 
 /**
  * WorldScene: main 3D world with avatar, scroll-driven camera, and section state.
- * Active section (intro | about | skills | projects | experience | contact) is
+ * Active section (intro | about | experience | projects | contact) is
  * derived from scroll progress. Use useSection() to read current section.
  */
 export function WorldScene() {

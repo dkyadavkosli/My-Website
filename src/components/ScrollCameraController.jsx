@@ -4,7 +4,7 @@ import { ScrollProgressProvider } from '../context/ScrollProgressContext'
 
 const lerp = (a, b, t) => a + (b - a) * t
 
-const SECTIONS = ['intro', 'about', 'skills', 'projects', 'experience', 'contact']
+const SECTIONS = ['intro', 'about', 'experience', 'projects', 'contact']
 
 function getSectionFromProgress(progress) {
   const index = Math.min(SECTIONS.length - 1, Math.floor(progress * SECTIONS.length))

@@ -7,7 +7,6 @@ import { IntroHero } from './components/IntroHero'
 import { AboutScreen } from './components/AboutScreen'
 import { ExperienceScreen } from './components/ExperienceScreen'
 import { ProjectsScreen } from './components/ProjectsScreen'
-import { SkillsScreen } from './components/SkillsScreen'
 import { ContactScreen } from './components/ContactScreen'
 import { ThankYouScreen } from './components/ThankYouScreen'
 
@@ -37,7 +36,6 @@ function App() {
       <AboutScreen />
       <ExperienceScreen />
       <ProjectsScreen />
-      <SkillsScreen />
       <ContactScreen />
       <ThankYouScreen />
       <AssistantRobot />

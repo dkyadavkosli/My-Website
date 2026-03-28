@@ -24,7 +24,7 @@ export function Avatar() {
     })
   }, [scene])
 
-  // After the initial 4s intro, smoothly fade the avatar out over 1s
+  // After the initial 4s intro, smoothly fade the avatar out quickly
   // so the camera travel happens through the environment only.
   useEffect(() => {
     const materials = []
@@ -42,7 +42,7 @@ export function Avatar() {
       ctx = gsap.context(() => {
         gsap.to(materials, {
           opacity: 0,
-          duration: 1,
+          duration: 0.5,
           ease: 'power2.out',
           onUpdate: invalidate,
         })

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useScrollProgress } from './ScrollProgressContext'
 
-export const SECTIONS = ['intro', 'about', 'skills', 'projects', 'experience', 'contact']
+export const SECTIONS = ['intro', 'about', 'experience', 'projects', 'contact']
 
 const SectionContext = createContext(null)
 

@@ -1,7 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import pic1 from '../assets/freelance.png'
 import pic2 from '../assets/crowd.png'
 import pic3 from '../assets/esports.png'
+import { IntroSpaceCanvas } from './IntroSpaceCanvas'
+import { ProjectsFocusOverlay, ProjectsSignalNetwork } from './ProjectsSignalNetwork'
+
+gsap.registerPlugin(ScrollTrigger)
+
+const EASE_EXIT = 'sine.inOut'
 
 const PROJECTS = [
   {
@@ -33,12 +41,36 @@ const PROJECTS = [
   },
 ]
 
+const ACCENT = '#7dd3fc'
+
 export function ProjectsScreen() {
   const [visible, setVisible] = useState(false)
+  const [focusedIndex, setFocusedIndex] = useState(null)
+  const [hoverIndex, setHoverIndex] = useState(null)
+  const [lineAnimKey, setLineAnimKey] = useState(0)
+  const [reducedMotion, setReducedMotion] = useState(false)
+
+  const rootRef = useRef(null)
+  const scrollContainerRef = useRef(null)
+  const scrollTrackRef = useRef(null)
+  const exitWrapRef = useRef(null)
+  const vignetteRef = useRef(null)
+  const scrollTriggerRef = useRef(null)
+  const exitDispatchedRef = useRef(false)
+  /** 0 → 1 while user scrolls the exit track; drives meteor shower intensity on IntroSpaceCanvas */
+  const projectsExitProgressRef = useRef(0)
 
   useEffect(() => {
-    const onShow = () => setVisible(true)
-    const onHide = () => setVisible(false)
+    const onShow = () => {
+      setVisible(true)
+      exitDispatchedRef.current = false
+    }
+
+    const onHide = () => {
+      setFocusedIndex(null)
+      setHoverIndex(null)
+      setVisible(false)
+    }
 
     window.addEventListener('showProjects', onShow)
     window.addEventListener('hideProjects', onHide)
@@ -49,214 +81,303 @@ export function ProjectsScreen() {
     }
   }, [])
 
-  // Scroll: up -> back to Experience; down -> forward to Skills.
   useEffect(() => {
-    if (!visible) return
+    if (typeof window === 'undefined') return undefined
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const apply = () => setReducedMotion(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
-    const handleWheel = (event) => {
-      if (!visible) return
-      if (event.deltaY < 0) {
-        setVisible(false)
-        window.dispatchEvent(new Event('hideProjects'))
-        window.dispatchEvent(new Event('projectsToExperience'))
-      } else if (event.deltaY > 0) {
-        setVisible(false)
-        window.dispatchEvent(new Event('hideProjects'))
-        window.dispatchEvent(new Event('projectsToSkills'))
+  useEffect(() => {
+    if (visible) projectsExitProgressRef.current = 0
+  }, [visible])
+
+  useLayoutEffect(() => {
+    if (!visible || reducedMotion) return undefined
+    const scrollEl = scrollContainerRef.current
+    const track = scrollTrackRef.current
+    const exitWrap = exitWrapRef.current
+    if (!scrollEl || !track || !exitWrap) return undefined
+
+    scrollEl.scrollTop = 0
+
+    const ctx = gsap.context(() => {
+      const exitTl = gsap.timeline({ paused: true })
+      exitTl.to(
+        exitWrap,
+        {
+          opacity: 0,
+          y: -22,
+          scale: 0.94,
+          filter: 'blur(7px)',
+          duration: 1.1,
+          ease: EASE_EXIT,
+        },
+        0
+      )
+      if (vignetteRef.current) {
+        exitTl.to(
+          vignetteRef.current,
+          {
+            opacity: 0,
+            duration: 0.95,
+            ease: EASE_EXIT,
+          },
+          0.12
+        )
       }
+
+      const finishExit = () => {
+        if (exitDispatchedRef.current) return
+        exitDispatchedRef.current = true
+        setFocusedIndex(null)
+        setHoverIndex(null)
+        setVisible(false)
+        window.dispatchEvent(new Event('hideProjects'))
+        window.dispatchEvent(new Event('projectsToContact'))
+      }
+
+      scrollTriggerRef.current = ScrollTrigger.create({
+        scroller: scrollEl,
+        trigger: track,
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 0.75,
+        animation: exitTl,
+        onUpdate: (self) => {
+          projectsExitProgressRef.current = self.progress
+          if (self.progress >= 0.998 && !exitDispatchedRef.current) {
+            finishExit()
+          }
+        },
+        onLeave: () => {
+          finishExit()
+        },
+      })
+
+      ScrollTrigger.refresh()
+    }, rootRef)
+
+    return () => {
+      scrollTriggerRef.current?.kill()
+      scrollTriggerRef.current = null
+      ctx.revert()
+    }
+  }, [visible, reducedMotion])
+
+  useEffect(() => {
+    if (!visible) return undefined
+    if (focusedIndex !== null) return undefined
+
+    if (reducedMotion) {
+      const handleWheel = (event) => {
+        if (event.deltaY < 0) {
+          setFocusedIndex(null)
+          setVisible(false)
+          window.dispatchEvent(new Event('hideProjects'))
+          window.dispatchEvent(new Event('projectsToExperience'))
+        } else if (event.deltaY > 0) {
+          setFocusedIndex(null)
+          setVisible(false)
+          window.dispatchEvent(new Event('hideProjects'))
+          window.dispatchEvent(new Event('projectsToContact'))
+        }
+      }
+      window.addEventListener('wheel', handleWheel, { passive: true })
+      return () => window.removeEventListener('wheel', handleWheel)
     }
 
-    window.addEventListener('wheel', handleWheel, { passive: true })
-    return () => window.removeEventListener('wheel', handleWheel)
+    const scrollEl = scrollContainerRef.current
+    if (!scrollEl) return undefined
+
+    const onWheelUpAtTop = (event) => {
+      if (scrollEl.scrollTop > 2) return
+      if (event.deltaY >= 0) return
+      setFocusedIndex(null)
+      setVisible(false)
+      window.dispatchEvent(new Event('hideProjects'))
+      window.dispatchEvent(new Event('projectsToExperience'))
+    }
+    scrollEl.addEventListener('wheel', onWheelUpAtTop, { passive: true })
+    return () => scrollEl.removeEventListener('wheel', onWheelUpAtTop)
+  }, [visible, focusedIndex, reducedMotion])
+
+  useEffect(() => {
+    if (!visible) return undefined
+    const onKey = (e) => {
+      if (e.key === 'Escape') setFocusedIndex(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [visible])
+
+  useEffect(() => {
+    return () => {
+      document.body.style.cursor = 'auto'
+    }
+  }, [])
+
+  const handleSelectNode = useCallback((index) => {
+    setLineAnimKey((k) => k + 1)
+    setFocusedIndex(index)
+  }, [])
+
+  const closeFocus = useCallback(() => {
+    setFocusedIndex(null)
+  }, [])
 
   if (!visible) return null
 
+  const focusedProject = focusedIndex !== null ? PROJECTS[focusedIndex] : null
+  const trackMinHeight = reducedMotion ? '100vh' : '200vh'
+
   return (
     <div
+      ref={rootRef}
       style={{
         position: 'absolute',
         inset: 0,
+        zIndex: 8,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '48px 32px 32px',
-        boxSizing: 'border-box',
         pointerEvents: 'none',
+        boxSizing: 'border-box',
       }}
     >
       <div
         style={{
           pointerEvents: 'auto',
-          maxWidth: 1040,
+          position: 'relative',
           width: '100%',
-          maxHeight: '100%',
-          overflowY: 'auto',
+          height: '100%',
         }}
       >
-        <h2
+        <div
+          ref={scrollContainerRef}
           style={{
-            margin: 0,
-            fontFamily:
-              'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            fontSize: 'clamp(1.75rem, 4vw, 2.25rem)',
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            color: '#f9fafb',
-            textAlign: 'center',
+            position: 'absolute',
+            inset: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            overscrollBehavior: 'contain',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
-          Recent Projects
-        </h2>
-        <div
-          style={{
-            width: 72,
-            height: 2,
-            margin: '12px auto 32px',
-            background: 'rgba(75, 85, 99, 0.8)',
-            borderRadius: 1,
-          }}
-        />
-
-        <div
-          style={{
-            display: 'flex',
-            gap: 20,
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-          }}
-        >
-          {PROJECTS.map((p) => (
-            <a
-              key={p.title}
-              href={p.link}
-              target="_blank"
-              rel="noreferrer"
+          <div
+            ref={scrollTrackRef}
+            style={{
+              minHeight: trackMinHeight,
+              position: 'relative',
+            }}
+          >
+            <div
               style={{
-                width: 280,
-                textDecoration: 'none',
-                color: 'inherit',
+                position: 'sticky',
+                top: 0,
+                minHeight: '100vh',
+                height: '100vh',
               }}
             >
-              <article
+              <div
+                ref={vignetteRef}
                 style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background:
+                    'radial-gradient(ellipse 85% 65% at 50% 38%, rgba(15, 23, 42, 0.35), transparent 58%)',
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                }}
+              />
+              {!reducedMotion && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 0,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <IntroSpaceCanvas
+                    active={visible}
+                    showStars={false}
+                    exitProgressRef={projectsExitProgressRef}
+                  />
+                </div>
+              )}
+              <div
+                ref={exitWrapRef}
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
                   width: '100%',
-                  borderRadius: 24,
-                  overflow: 'hidden',
-                  background: 'linear-gradient(to bottom right, #0a0a0a, #141414, #1a1a1a)',
-                  border: '1px solid rgba(51, 65, 85, 0.5)',
-                  boxShadow: '0 20px 60px rgba(15, 23, 42, 0.95)',
-                  color: '#e5e7eb',
-                  display: 'flex',
-                  flexDirection: 'column',
+                  height: '100%',
+                  minHeight: '100vh',
+                  willChange: 'transform, opacity, filter',
                 }}
               >
-                <div
+                <ProjectsSignalNetwork
+                  projects={PROJECTS}
+                  focusedIndex={focusedIndex}
+                  hoverIndex={hoverIndex}
+                  onHover={setHoverIndex}
+                  onSelectNode={handleSelectNode}
+                  reducedMotion={reducedMotion}
+                  lineAnimKey={lineAnimKey}
+                />
+
+                <header
                   style={{
-                    position: 'relative',
-                    height: 200,
-                    overflow: 'hidden',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    padding: 'clamp(36px, 6.5vh, 72px) 20px 10px',
+                    textAlign: 'center',
+                    pointerEvents: 'none',
+                    zIndex: 4,
                   }}
                 >
-                  <img
-                    src={p.image}
-                    alt={p.title}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 12,
-                      left: 12,
-                      fontSize: '2rem',
-                    }}
-                  >
-                    ☀️
-                  </div>
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 12,
-                      right: 12,
-                      padding: '6px 12px',
-                      borderRadius: 999,
-                      background: '#2e2e2e',
-                      border: '1px solid rgba(55,65,81,0.9)',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: '#e5e7eb',
-                    }}
-                  >
-                    {p.tag}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: '20px 20px 18px',
-                    flexGrow: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: '1.25rem',
-                      fontWeight: 600,
-                      textAlign: 'left',
-                      marginBottom: 12,
-                      color: '#fff',
-                    }}
-                  >
-                    {p.title}
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      fontSize: 11,
-                      letterSpacing: '0.14em',
-                      textTransform: 'uppercase',
-                      color: '#6ee7b7',
-                      marginBottom: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: 999,
-                        background: '#22c55e',
-                      }}
-                    />
-                    <span>{p.type}</span>
-                  </div>
-
-                  <p
+                  <h2
                     style={{
                       margin: 0,
-                      fontSize: 13,
-                      lineHeight: 1.65,
-                      color: '#d1d5db',
-                      flexGrow: 1,
+                      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                      fontSize: 'clamp(1.05rem, 2.75vw, 1.45rem)',
+                      letterSpacing: '0.2em',
+                      textTransform: 'uppercase',
+                      color: '#f8fafc',
+                      fontWeight: 700,
+                      textShadow: '0 0 40px rgba(125, 211, 252, 0.22), 0 2px 24px rgba(0, 0, 0, 0.45)',
                     }}
                   >
-                    {p.description}
-                  </p>
-                </div>
-              </article>
-            </a>
-          ))}
+                    Recent Projects
+                  </h2>
+                  <div
+                    style={{
+                      width: 'min(200px, 52vw)',
+                      height: 2,
+                      margin: '14px auto 0',
+                      borderRadius: 1,
+                      background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+                      opacity: 0.72,
+                      boxShadow: '0 0 20px rgba(125, 211, 252, 0.35)',
+                    }}
+                  />
+                </header>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <ProjectsFocusOverlay
+          project={focusedProject}
+          open={focusedIndex !== null}
+          onClose={closeFocus}
+          reducedMotion={reducedMotion}
+        />
       </div>
     </div>
   )
 }
-
