@@ -9,6 +9,7 @@ import { ExperienceScreen } from './components/ExperienceScreen'
 import { ProjectsScreen } from './components/ProjectsScreen'
 import { ContactScreen } from './components/ContactScreen'
 import { ThankYouScreen } from './components/ThankYouScreen'
+import { CursorAsteroidTrail } from './components/CursorAsteroidTrail'
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
       <ThankYouScreen />
       <AssistantRobot />
       <ScrollIndicator />
+      <CursorAsteroidTrail />
     </div>
   )
 }
