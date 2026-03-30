@@ -1,4 +1,3 @@
-import { Avatar } from '../components/Avatar'
 import { IntroCameraMove } from '../components/IntroCameraMove'
 import { ScrollCameraController } from '../components/ScrollCameraController'
 import { GridFloor } from '../components/GridFloor'
@@ -43,7 +42,6 @@ export function IntroScene() {
       {/* Dark floor that receives shadows */}
       <GridFloor />
 
-      <Avatar />
       <IntroCameraMove />
     </ScrollCameraController>
   )

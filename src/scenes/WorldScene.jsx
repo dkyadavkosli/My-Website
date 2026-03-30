@@ -1,11 +1,10 @@
-import { Avatar } from '../components/Avatar'
 import { ScrollCameraController } from '../components/ScrollCameraController'
 import { AtmosphericParticles } from '../components/AtmosphericParticles'
 import { IntroCameraMove } from '../components/IntroCameraMove'
 import { SectionProvider } from '../context/SectionContext'
 
 /**
- * WorldScene: main 3D world with avatar, scroll-driven camera, and section state.
+ * WorldScene: main 3D world with scroll-driven camera and section state.
  * Active section (intro | about | experience | projects | contact) is
  * derived from scroll progress. Use useSection() to read current section.
  */
@@ -26,9 +25,6 @@ export function WorldScene() {
 
         {/* Environment */}
         <AtmosphericParticles />
-
-        {/* Avatar */}
-        <Avatar />
 
         {/* One-time cinematic camera intro */}
         <IntroCameraMove />

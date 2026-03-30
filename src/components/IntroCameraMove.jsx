@@ -2,13 +2,11 @@ import { useEffect, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import gsap from 'gsap'
 
-// Phase 1: subtle intro zoom on the avatar
-// Phase 2: travel into first hero screen
+// Initial load: direct zoom to the hero screen.
 // Scroll-driven moves use SCREEN_CAMERA_DURATION (shorter = snappier).
 const INITIAL_TO_HERO_DURATION = 2.45
 const SCREEN_CAMERA_DURATION = 2.15
 const START = { x: 0, y: 1.8, z: 5 }
-const MID = { x: 0, y: 1.8, z: 2.6 }
 // Hero→Card unchanged; Card→About and all later steps doubled again.
 const HERO_TARGET = { x: 0, y: 1.8, z: 0.2 }
 const CARD_TARGET = { x: 2.0, y: 1.35, z: 1.4 }
@@ -36,31 +34,17 @@ export function IntroCameraMove() {
         },
       })
 
-      // First ~2.2s: quick zoom-in on the avatar
+      // Direct travel into the scene to frame the hero "I'M DIPESH" screen
       tl.to(camera.position, {
-        x: MID.x,
-        y: MID.y,
-        z: MID.z,
-        duration: 2.2,
+        x: HERO_TARGET.x,
+        y: HERO_TARGET.y,
+        z: HERO_TARGET.z,
+        duration: INITIAL_TO_HERO_DURATION,
         ease: 'power2.inOut',
-      })
-
-      // Wait 1s while the avatar fades out, then
-      // Travel into the scene to frame the hero "I'M DIPESH" screen
-      tl.to(
-        camera.position,
-        {
-          x: HERO_TARGET.x,
-          y: HERO_TARGET.y,
-          z: HERO_TARGET.z,
-          duration: INITIAL_TO_HERO_DURATION,
-          ease: 'power2.inOut',
-          onComplete: () => {
-            window.dispatchEvent(new Event('showHero'))
-          },
+        onComplete: () => {
+          window.dispatchEvent(new Event('showHero'))
         },
-        '+=1'
-      )
+      })
     })
 
     return () => ctx.revert()

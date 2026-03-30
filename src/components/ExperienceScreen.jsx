@@ -31,7 +31,7 @@ const EXPERIENCES = [
   },
 ]
 
-const TRACK_MIN_VH = 200
+const TRACK_MIN_VH = 280
 const ACCENT = '#a5b4fc'
 const ACCENT_SOFT = 'rgba(165, 180, 252, 0.45)'
 
@@ -268,7 +268,9 @@ ExperienceDetail.displayName = 'ExperienceDetail'
 export function ExperienceScreen() {
   const uid = useId().replace(/:/g, '')
   const [visible, setVisible] = useState(false)
+  // Smoothed scroll progress for all visual animations (prevents "sticky" dash updates).
   const [scrollP, setScrollP] = useState(0)
+  const scrollTargetPRef = useRef(0)
   const [pathLen, setPathLen] = useState(0)
   const [nodePoints, setNodePoints] = useState([])
   const [lightPhase, setLightPhase] = useState(0)
@@ -284,7 +286,9 @@ export function ExperienceScreen() {
   const t0Ref = useRef(0)
 
   const n = EXPERIENCES.length
-  const activeIndex = Math.min(n - 1, Math.max(0, Math.floor(scrollP * n * 1.0001)))
+  // Delay chapter handoff so each experience gets more scroll time.
+  const storyP = Math.min(1, scrollP * 0.84)
+  const activeIndex = Math.min(n - 1, Math.max(0, Math.floor(storyP * n * 1.0001)))
 
   const updateBeamBridge = useCallback(() => {
     if (!visible) {
@@ -413,7 +417,7 @@ export function ExperienceScreen() {
     const el = scrollRef.current
     if (!el) return
     const max = Math.max(1, el.scrollHeight - el.clientHeight)
-    setScrollP(el.scrollTop / max)
+    scrollTargetPRef.current = el.scrollTop / max
   }, [])
 
   useEffect(() => {
@@ -422,6 +426,7 @@ export function ExperienceScreen() {
     if (!el) return undefined
     el.scrollTop = 0
     setScrollP(0)
+    scrollTargetPRef.current = 0
     const ro = () => onScroll()
     el.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', ro)
@@ -431,6 +436,24 @@ export function ExperienceScreen() {
       window.removeEventListener('resize', ro)
     }
   }, [visible, onScroll])
+
+  /** Smoothly lerp displayed scrollP towards the real scroll target. */
+  useEffect(() => {
+    if (!visible) return undefined
+    let raf = 0
+    const loop = () => {
+      raf = requestAnimationFrame(loop)
+      const t = scrollTargetPRef.current
+      setScrollP((prev) => {
+        const next = prev + (t - prev) * 0.14
+        // snap when close to avoid endless micro-updates
+        if (Math.abs(t - next) < 0.0001) return t
+        return next
+      })
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [visible])
 
   useEffect(() => {
     if (!visible) return undefined
